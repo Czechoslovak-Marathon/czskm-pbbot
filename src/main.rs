@@ -77,12 +77,16 @@ impl EventHandler for Handler {
             }
             let runners_vector: Vec<Runner> = match runners {
                 Ok(r) => r,
-                Err(_) => return
+                Err(_) => {
+                    println!("[ERROR] Couldn't get runners");
+                    return;
+                }
             };
+            println!("[INFO] Got runners, iterating");
             for runner in runners_vector {
                 loop {
                     // Sleep to prevent spamming the API
-                    sleep(Duration::from_millis(3000)).await;
+                    sleep(Duration::from_millis(1000)).await;
                     // Get latest run from the API
                     match get_latest_run(&runner.name).await {
                         Ok(latest_run) => {
@@ -203,6 +207,7 @@ impl EventHandler for Handler {
                             continue;
                         }
                     }
+                    break;
                 }
             }
         }
