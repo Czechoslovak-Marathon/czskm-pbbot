@@ -1,13 +1,11 @@
-use serenity::{
-    prelude::*,
-};
 use anyhow::Result;
+use rusqlite::{params, Connection};
+use serenity::prelude::TypeMapKey;
+use serenity::prelude::*;
 use std::path::Path;
-use rusqlite::{Connection, params};
-use typemap_rev::TypeMapKey;
 
 pub struct Database {
-    conn: Mutex<Connection>
+    conn: Mutex<Connection>,
 }
 
 impl TypeMapKey for Database {
@@ -17,8 +15,13 @@ impl TypeMapKey for Database {
 // Connect to the sqlite3 database
 pub fn connect() -> Result<Database> {
     let conn = Connection::open(Path::new("runners.db"))?;
-    conn.execute("CREATE TABLE IF NOT EXISTS runners (runner TEXT, last_run TEXT)", [])?;
-    let db = Database {conn: Mutex::new(conn)};
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS runners (runner TEXT, last_run TEXT)",
+        [],
+    )?;
+    let db = Database {
+        conn: Mutex::new(conn),
+    };
     Ok(db)
 }
 
@@ -26,14 +29,20 @@ impl Database {
     // Add a new runner
     pub async fn add_runner(&self, runner: &str, last_run: &str) -> Result<()> {
         let conn = &self.conn.lock().await;
-        conn.execute("INSERT INTO runners VALUES (?1, ?2)", params![runner, last_run])?;
+        conn.execute(
+            "INSERT INTO runners VALUES (?1, ?2)",
+            params![runner, last_run],
+        )?;
         Ok(())
     }
 
     // Update runner's last run
     pub async fn update_runner(&self, runner: String, last_run: String) -> Result<()> {
         let conn = &self.conn.lock().await;
-        conn.execute("UPDATE runners SET last_run = ?1 WHERE runner = ?2", params![last_run, runner])?;
+        conn.execute(
+            "UPDATE runners SET last_run = ?1 WHERE runner = ?2",
+            params![last_run, runner],
+        )?;
         Ok(())
     }
 
@@ -58,5 +67,5 @@ impl Database {
 #[derive(Debug)]
 pub struct Runner {
     pub name: String,
-    pub last_run: String
+    pub last_run: String,
 }

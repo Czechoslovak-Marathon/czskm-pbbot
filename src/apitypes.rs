@@ -12,7 +12,7 @@ pub struct RunData {
     pub values: HashMap<String, String>,
     pub weblink: String,
     pub times: Times,
-    pub date: String
+    pub date: String,
 }
 
 #[derive(Deserialize, Debug)]
