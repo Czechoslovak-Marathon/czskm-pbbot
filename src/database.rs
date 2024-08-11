@@ -19,6 +19,10 @@ pub fn connect() -> Result<Database> {
         "CREATE TABLE IF NOT EXISTS runners (runner TEXT, last_run TEXT)",
         [],
     )?;
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS streamers (streamer TEXT, streamerId TEXT)",
+        [],
+    )?;
     let db = Database {
         conn: Mutex::new(conn),
     };
@@ -62,10 +66,43 @@ impl Database {
         }
         Ok(runners_vector)
     }
+
+    // Add a new streamer
+    pub async fn add_streamer(&self, streamer: &str, streamer_id: &str) -> Result<()> {
+        let conn = &self.conn.lock().await;
+        conn.execute(
+            "INSERT INTO streamers VALUES (?1, ?2)",
+            params![streamer, streamer_id],
+        )?;
+        Ok(())
+    }
+
+    // Get all streamers
+    pub async fn get_streamers(&self) -> Result<Vec<Streamer>> {
+        let conn = &self.conn.lock().await;
+        let mut statement = conn.prepare("SELECT * FROM streamers")?;
+        let streamers = statement.query_map([], |row| {
+            Ok(Streamer {
+                streamer: row.get(0)?,
+                streamer_id: row.get(1)?,
+            })
+        })?;
+        let mut streamers_vector: Vec<Streamer> = Vec::new();
+        for streamer in streamers {
+            streamers_vector.push(streamer.unwrap());
+        }
+        Ok(streamers_vector)
+    }
 }
 
 #[derive(Debug)]
 pub struct Runner {
     pub name: String,
     pub last_run: String,
+}
+
+#[derive(Debug)]
+pub struct Streamer {
+    pub streamer: String,
+    pub streamer_id: String,
 }

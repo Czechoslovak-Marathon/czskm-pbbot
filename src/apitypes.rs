@@ -1,6 +1,8 @@
 use serde::Deserialize;
+use serenity::all::MessageId;
 use std::collections::HashMap;
 
+// Speedrun.com API
 // Run
 #[derive(Deserialize, Debug)]
 pub struct RunData {
@@ -108,3 +110,31 @@ pub struct VariableValues {
 pub struct VariableLabel {
     pub label: String,
 }
+
+// Twitch API
+
+#[derive(Deserialize, Debug)]
+pub struct TwitchUserResponse {
+    pub data: Vec<TwitchUser>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct TwitchUser {
+    pub id: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct TwitchStreamResponse {
+    pub data: Vec<TwitchStream>,
+}
+
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct TwitchStream {
+    pub user_name: String,
+    pub title: String,
+    pub game_name: String,
+    pub thumbnail_url: String,
+}
+
+pub type StreamMessage = HashMap<String, MessageId>;

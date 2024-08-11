@@ -1,6 +1,9 @@
 use crate::apitypes::*;
 use anyhow::Result;
+use reqwest::header::{self};
 use std::collections::HashMap;
+
+// Speedrun.com API
 
 pub async fn get_latest_run(runner: &str) -> Result<Option<Run>> {
     let request_url = format!(
@@ -71,4 +74,63 @@ pub async fn get_variables(values: HashMap<String, String>) -> Result<Option<Str
         return Ok(None);
     }
     Ok(Some(variables.join(", ")))
+}
+
+// Twitch API
+
+pub async fn get_twitch_user_id(user_name: &str) -> Result<Option<TwitchUser>> {
+    let request_url = format!("https://api.twitch.tv/helix/users?login={user_name}", user_name = user_name);
+    let mut headers = header::HeaderMap::new();
+    headers.insert(header::AUTHORIZATION, header::HeaderValue::from_static("Bearer {OAUTH_KEY_HERE}"));
+    headers.insert(
+        "Client-Id",
+        header::HeaderValue::from_static("{CLIENT_ID_HERE}"),
+    );
+
+    let client = reqwest::Client::new();
+
+    let response = client
+        .get(request_url)
+        .headers(headers)
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    let data: TwitchUserResponse = serde_json::from_str(&response)?;
+
+    if let Some(twitch_user) = data.data.first().cloned() {
+        Ok(Some(twitch_user))
+    } else {
+        Ok(None)
+    }
+}
+
+pub async fn get_twitch_stream(user_id: &str) -> Result<Option<TwitchStream>> {
+    let request_url = format!("https://api.twitch.tv/helix/streams?user_id={user_id}", user_id = user_id);
+    
+    let mut headers = header::HeaderMap::new();
+    headers.insert(header::AUTHORIZATION, header::HeaderValue::from_static("Bearer {OAUTH_KEY_HERE}"));
+    headers.insert(
+        "Client-Id",
+        header::HeaderValue::from_static("{CLIENT_ID_HERE}"),
+    );
+
+    let client = reqwest::Client::new();
+
+    let response = client
+        .get(request_url)
+        .headers(headers)
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    let data: TwitchStreamResponse = serde_json::from_str(&response)?;
+
+    if let Some(twitch_stream) = data.data.first().cloned() {
+        Ok(Some(twitch_stream))
+    } else {
+        Ok(None)
+    }
 }
