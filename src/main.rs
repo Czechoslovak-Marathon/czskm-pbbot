@@ -11,9 +11,9 @@ use serenity::{
     model::{channel::Message, gateway::Ready, id::ChannelId},
     prelude::*,
 };
+use std::collections::HashMap;
 use tokio::task;
 use tokio::time::{sleep, Duration};
-use std::collections::HashMap;
 
 use crate::apirequests::*;
 use crate::apitypes::*;
@@ -21,6 +21,7 @@ use crate::database::*;
 
 pub mod apirequests;
 pub mod apitypes;
+pub mod config;
 pub mod database;
 
 struct Handler;
@@ -48,47 +49,52 @@ impl Handler {
                 // Sleep to prevent spamming the API
                 sleep(Duration::from_millis(5000)).await;
                 match get_twitch_stream(&streamer.streamer_id).await {
-                    Ok(stream_option) => {
-                        match stream_option {
-                            Some(stream) => {
-                                if stream_messages.contains_key(&streamer.streamer) {
-                                    continue;
+                    Ok(stream_option) => match stream_option {
+                        Some(stream) => {
+                            if stream_messages.contains_key(&streamer.streamer) {
+                                continue;
+                            }
+                            let title = format!("{}", stream.title);
+                            let description =
+                                format!("{} streamuje: {}", stream.user_name, stream.game_name);
+                            let url = format!("https://www.twitch.tv/{}", stream.user_name);
+                            let thumbnail = stream
+                                .thumbnail_url
+                                .replace("{width}", "1280")
+                                .replace("{height}", "720");
+
+                            let embed = CreateEmbed::new()
+                                .title(title)
+                                .description(description)
+                                .url(url)
+                                .image(thumbnail);
+
+                            let builder = CreateMessage::new().embed(embed);
+
+                            match ChannelId::new(1229888105750724718)
+                                .send_message(&ctx, builder)
+                                .await
+                            {
+                                Ok(message) => {
+                                    stream_messages.insert(streamer.streamer, message.id);
                                 }
-                                let title = format!("{}", stream.title);
-                                let description = format!("{} streamuje: {}", stream.user_name, stream.game_name);
-                                let url = format!("https://www.twitch.tv/{}", stream.user_name);
-                                let thumbnail = stream.thumbnail_url.replace("{width}", "1280").replace("{height}", "720");
-
-                                let embed = CreateEmbed::new()
-                                    .title(title)
-                                    .description(description)
-                                    .url(url)
-                                    .image(thumbnail);
-
-                                let builder = CreateMessage::new().embed(embed);
-
-                                match ChannelId::new(1229888105750724718)
-                                    .send_message(&ctx, builder)
+                                Err(why) => {
+                                    log::error!("Failed to send message: {:?}", why);
+                                    println!("[ERROR] Failed to send message: {:?}", why);
+                                }
+                            };
+                        }
+                        None => {
+                            if let Some(&message_id) = stream_messages.get(&streamer.streamer) {
+                                if let Err(why) = ChannelId::new(1229888105750724718)
+                                    .delete_message(&ctx, message_id)
                                     .await
                                 {
-                                    Ok(message) => {
-                                        stream_messages.insert(streamer.streamer, message.id);
-                                    }
-                                    Err(why) => {
-                                        log::error!("Failed to send message: {:?}", why);
-                                        println!("[ERROR] Failed to send message: {:?}", why);
-                                    }
-                                };
-                            },
-                            None => {
-                                if let Some(&message_id) = stream_messages.get(&streamer.streamer) {
-                                    if let Err(why) = ChannelId::new(1229888105750724718).delete_message(&ctx, message_id).await {
-                                        log::error!("Failed to delete message: {:?}", why);
-                                        println!("[ERROR] Failed to delete message: {:?}", why);
-                                    }
-
-                                    stream_messages.remove(&streamer.streamer);
+                                    log::error!("Failed to delete message: {:?}", why);
+                                    println!("[ERROR] Failed to delete message: {:?}", why);
                                 }
+
+                                stream_messages.remove(&streamer.streamer);
                             }
                         }
                     },
@@ -357,7 +363,10 @@ impl EventHandler for Handler {
                             Ok(twitch_user) => match twitch_user {
                                 Some(twitch_user) => twitch_user.id,
                                 None => {
-                                    log::error!("Failed to get Twitch user id for: {:#?}", streamer);
+                                    log::error!(
+                                        "Failed to get Twitch user id for: {:#?}",
+                                        streamer
+                                    );
                                     println!("[ERROR] Failed to get latest run");
                                     String::from("")
                                 }
@@ -373,7 +382,11 @@ impl EventHandler for Handler {
                         match added {
                             Ok(_) => println!("[INFO] Added new streamer"),
                             Err(_) => {
-                                log::error!("Failed to add streamer: {:#?} {:#?}", streamer[1], streamer_id);
+                                log::error!(
+                                    "Failed to add streamer: {:#?} {:#?}",
+                                    streamer[1],
+                                    streamer_id
+                                );
                                 println!("[ERROR] Failed to add streamer");
                             }
                         }
@@ -441,7 +454,8 @@ async fn main() -> Result<()> {
     log4rs::init_config(config)?;
 
     // Discord Token (better as environmental variable)
-    let token = "{DISCORD_TOKEN_HERE}";
+    let config = config::get_config();
+    let token = config.discord_token.as_str();
 
     let intents = GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT;
 

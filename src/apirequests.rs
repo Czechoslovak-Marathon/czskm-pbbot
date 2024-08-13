@@ -3,6 +3,8 @@ use anyhow::Result;
 use reqwest::header::{self};
 use std::collections::HashMap;
 
+use crate::config::*;
+
 // Speedrun.com API
 
 pub async fn get_latest_run(runner: &str) -> Result<Option<Run>> {
@@ -79,13 +81,18 @@ pub async fn get_variables(values: HashMap<String, String>) -> Result<Option<Str
 // Twitch API
 
 pub async fn get_twitch_user_id(user_name: &str) -> Result<Option<TwitchUser>> {
-    let request_url = format!("https://api.twitch.tv/helix/users?login={user_name}", user_name = user_name);
-    let mut headers = header::HeaderMap::new();
-    headers.insert(header::AUTHORIZATION, header::HeaderValue::from_static("Bearer {OAUTH_KEY_HERE}"));
-    headers.insert(
-        "Client-Id",
-        header::HeaderValue::from_static("{CLIENT_ID_HERE}"),
+    let request_url = format!(
+        "https://api.twitch.tv/helix/users?login={user_name}",
+        user_name = user_name
     );
+    let mut headers = header::HeaderMap::new();
+    let twitch_oauth = get_config().twitch_oauth.as_str();
+    let client_id = get_config().twitch_client_id.as_str();
+    headers.insert(
+        header::AUTHORIZATION,
+        header::HeaderValue::from_str(&format!("Bearer {}", twitch_oauth)).unwrap(),
+    );
+    headers.insert("Client-Id", header::HeaderValue::from_static(&client_id));
 
     let client = reqwest::Client::new();
 
@@ -107,14 +114,19 @@ pub async fn get_twitch_user_id(user_name: &str) -> Result<Option<TwitchUser>> {
 }
 
 pub async fn get_twitch_stream(user_id: &str) -> Result<Option<TwitchStream>> {
-    let request_url = format!("https://api.twitch.tv/helix/streams?user_id={user_id}", user_id = user_id);
-    
-    let mut headers = header::HeaderMap::new();
-    headers.insert(header::AUTHORIZATION, header::HeaderValue::from_static("Bearer {OAUTH_KEY_HERE}"));
-    headers.insert(
-        "Client-Id",
-        header::HeaderValue::from_static("{CLIENT_ID_HERE}"),
+    let request_url = format!(
+        "https://api.twitch.tv/helix/streams?user_id={user_id}",
+        user_id = user_id
     );
+
+    let mut headers = header::HeaderMap::new();
+    let twitch_oauth = get_config().twitch_oauth.as_str();
+    let client_id = get_config().twitch_client_id.as_str();
+    headers.insert(
+        header::AUTHORIZATION,
+        header::HeaderValue::from_str(&format!("Bearer {}", twitch_oauth)).unwrap(),
+    );
+    headers.insert("Client-Id", header::HeaderValue::from_static(&client_id));
 
     let client = reqwest::Client::new();
 
